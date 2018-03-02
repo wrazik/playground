@@ -1,20 +1,24 @@
-//use std::fs::File;
-//use std::io::prelude::*;
-use std::process::Command;
-use std::str;
+use std::fs::File;
+//use std::io;
+use std::error;
+use std::io::Read;
  
 extern crate num_cpus;
 
-fn read_max_cpu_freq(core_nb: usize) -> Result<u64, std::num::ParseIntError> {
+type Result<T> = std::result::Result<T, Box<error::Error>>;
+
+fn remove_trailing_newline(s: &mut String) {
+    let len_withoutcrlf = s.trim_right().len();
+    s.truncate(len_withoutcrlf);
+}
+
+fn read_max_cpu_freq(core_nb: usize) -> Result<u64>{
     let max_freq_path = format!("/sys/devices/system/cpu/cpu{}/cpufreq/cpuinfo_max_freq", core_nb);
-    let max_freq_info = Command::new("cat")
-        .arg(max_freq_path)
-        .output()
-        .expect("Do you have cpuinfo_max_freq?"); 
-    let mut cpu_freq = String::from(str::from_utf8(&max_freq_info.stdout).unwrap());
-    //remove newline
-    cpu_freq.pop();
-    cpu_freq.parse::<u64>()
+    let mut file = File::open(max_freq_path)?;
+    let mut content = String::new();
+    file.read_to_string(&mut content)?;
+    remove_trailing_newline(&mut content);
+    Ok(content.parse()?)
 }
 
 fn main() {
