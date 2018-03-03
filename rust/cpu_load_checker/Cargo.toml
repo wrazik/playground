@@ -2,5 +2,9 @@
 name = "cpu_load_checker"
 version = "0.1.0"
 authors = ["wrazik <wojciech.razik@gmail.com>"]
+[lib]
+name="cpu_load"
+path="src/lib.rs"
+
 [dependencies]
 num_cpus = "1.8.0"
