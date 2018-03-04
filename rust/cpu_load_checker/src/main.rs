@@ -1,12 +1,12 @@
 extern crate num_cpus;
 extern crate cpu_load;
 
-use cpu_load::read_max_cpu_freq;
+use cpu_load::read_max_freq;
 
 fn main() {
     let proc_count = num_cpus::get();
     for i in 0..proc_count {
-        match read_max_cpu_freq(0) {
+        match read_max_freq(i) {
             Ok(max_freq) => {
                 println!("CPU{} max frequency: {}\n", i, max_freq);
             }
