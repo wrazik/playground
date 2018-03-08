@@ -1,18 +1,16 @@
-extern crate num_cpus;
 extern crate cpu_load;
-
-use cpu_load::read_max_freq;
+use cpu_load::get_curr_freqs;
 
 fn main() {
-    let proc_count = num_cpus::get();
-    for i in 0..proc_count {
-        match read_max_freq(i) {
-            Ok(max_freq) => {
-                println!("CPU{} max frequency: {}\n", i, max_freq);
+    match get_curr_freqs() {
+        Ok(freq_vec) => {
+            for (core_nb, cpu_freq) in freq_vec {
+                print!("| Cpu{}: {:.2}% ", core_nb, cpu_freq);
             }
-            Err(error) => {
-                println!("Error parsing max freq: {} \n", error.to_string());
-            }
+            println!("|");
+        }
+        Err(err) => {
+            println!("Error: {}\n", err.to_string());
         }
     }
 }
