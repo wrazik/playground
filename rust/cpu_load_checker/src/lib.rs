@@ -48,9 +48,7 @@ fn get_core_nb(word: &str) -> usize {
 fn create_single_proc_stats(line: &str) -> ProcStats {
     let mut word_it = line.split_whitespace();
     let core_nb = get_core_nb(&word_it.next().unwrap());
-    let as_nums: Vec<_> = word_it.map(|word| {
-        word.parse::<i64>().unwrap()
-    }).collect();
+    let as_nums: Vec<_> = word_it.map(|word| word.parse::<i64>().unwrap()).collect();
 
     ProcStats {
         core_nb: core_nb,
@@ -70,7 +68,8 @@ fn create_single_proc_stats(line: &str) -> ProcStats {
 fn read_proc_stats() -> Result<Vec<ProcStats>> {
     let proc_stat_file = File::open("/proc/stat")?;
     let proc_stat_lines = BufReader::new(&proc_stat_file);
-    let result: Vec<_> = proc_stat_lines.lines()
+    let result: Vec<_> = proc_stat_lines
+        .lines()
         .map(|line| line.unwrap())
         .filter(|line| is_cpu_core_line(&line))
         .map(|line| create_single_proc_stats(&line))
@@ -80,13 +79,13 @@ fn read_proc_stats() -> Result<Vec<ProcStats>> {
 
 fn get_cpu_freqs(prev: &Vec<ProcStats>, curr: &Vec<ProcStats>) -> Result<Vec<(usize, f64)>> {
     assert_eq!(prev.len(), curr.len());
-    let mut result  = Vec::new();
+    let mut result = Vec::new();
 
     for (previous, current) in prev.iter().zip(curr.iter()) {
         assert_eq!(previous.core_nb, current.core_nb);
         let totald = (current.get_total() - previous.get_total()) as f64;
         let idled = (current.get_idle() - previous.get_idle()) as f64;
-        result.push((previous.core_nb, (totald-idled)/totald*100.0));
+        result.push((previous.core_nb, (totald - idled) / totald * 100.0));
     }
     Ok(result)
 }
@@ -127,6 +126,6 @@ mod tests {
         };
 
         let actual = create_single_proc_stats("cpu3 24082 250 3356 65772 481 488 199 0 0 0");
-        assert_eq!( actual, expected);
+        assert_eq!(actual, expected);
     }
 }
