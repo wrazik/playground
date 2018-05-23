@@ -1,0 +1,6 @@
+[package]
+name = "race_ml"
+version = "0.1.0"
+authors = ["wrazik <wojciech.razik@gmail.com>"]
+
+[dependencies]
