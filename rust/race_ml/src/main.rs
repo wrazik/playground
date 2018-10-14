@@ -2,12 +2,15 @@ extern crate piston;
 extern crate graphics;
 extern crate glutin_window;
 extern crate opengl_graphics;
+extern crate rand;
 
 use piston::window::WindowSettings;
 use piston::event_loop::*;
 use piston::input::*;
 use glutin_window::GlutinWindow as Window;
 use opengl_graphics::{ GlGraphics, OpenGL };
+use rand::prelude::*;
+ 
 
 pub struct Position {
     x: f64,
@@ -44,8 +47,8 @@ impl Sprite {
         if (self.position.y < 0.) {
             self.position.y = 0.
         }
-        else if (self.position.y >  550.) {
-            self.position.y = 550.;
+        else if (self.position.y >  600.) {
+            self.position.y = 600.;
         }
     }
 }
@@ -58,9 +61,13 @@ pub struct Ball {
     sprite: Sprite
 }
 
+
 impl Ball {
+    const WHITE: [f32; 4] = [0.6, 0.0, 0.6, 1.0];
+
     fn draw(&mut self, gl: &mut GlGraphics, args: &RenderArgs) {
         use graphics::*;
+        let RADIUS = 10.0;
 
         let (x, y) = (self.sprite.position.x,
                       self.sprite.position.y);
@@ -68,16 +75,21 @@ impl Ball {
         gl.draw(args.viewport(), |c, gl| {
             let transform = c.transform.trans(x, y);
 
-            rectangle(Pad::WHITE, Pad::PAD, transform, gl);
+            ellipse(
+                Ball::WHITE,
+                graphics::ellipse::circle(0.,0., 20.0), 
+                transform, 
+                gl
+            );
         });
     }
     
-    fn bounce_x() {
-       self.position.x = -self.position.x;
+    fn bounce_x(&mut self) {
+       self.sprite.velocity[0] = -self.sprite.velocity[0];
     }
 
-    fn bounce_y() {
-       self.position.y = self.position.y;
+    fn bounce_y(&mut self) {
+       self.sprite.velocity[1] = -self.sprite.velocity[1];
     }
 
     fn update(&mut self) {
@@ -87,7 +99,7 @@ impl Ball {
 
 impl Pad {
     const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
-    const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+    const WHITE: [f32; 4] = [0.0, 0.0, 1.0, 1.0];
     const PAD: [f64; 4] = [0.0, 0.0, 10.0, 50.0];
 
     fn draw(&mut self, gl: &mut GlGraphics, args: &RenderArgs) {
@@ -124,6 +136,7 @@ pub struct App {
     gl: GlGraphics, // OpenGL drawing backend.
     left_pad: Pad,  
     right_pad: Pad,  
+    ball: Ball,  
 }
 
 impl App {
@@ -139,11 +152,26 @@ impl App {
 
         self.left_pad.draw(&mut self.gl, args);
         self.right_pad.draw(&mut self.gl, args);
+        self.ball.draw(&mut self.gl, args);
     }
 
     fn update(&mut self, args: &UpdateArgs) {
         self.left_pad.update();
         self.right_pad.update();
+        self.ball.update();
+        if (self.ball.sprite.position.x > 780.) {
+            self.ball.bounce_x();
+        }
+        if (self.ball.sprite.position.x < 10.) {
+            self.ball.bounce_x();
+        }
+        if (self.ball.sprite.position.y < 10.) {
+            self.ball.bounce_y();
+        }
+
+        if (self.ball.sprite.position.y > 580.) {
+            self.ball.bounce_y();
+        }
     }
 
     fn release(&mut self, key: &Button) {
@@ -168,7 +196,6 @@ impl App {
             _ => {}
         }
     }
-
 
     fn key_pressed(&mut self, key: &Button) {
         // Rotate 2 radians per second.
@@ -198,6 +225,7 @@ impl App {
 fn main() {
     let opengl = OpenGL::V3_2;
 
+
     // Create an Glutin window.
     let mut window: Window = WindowSettings::new(
             "spinning-square",
@@ -208,6 +236,9 @@ fn main() {
         .build()
         .unwrap();
 
+//    let mut rng = thread_rng();
+//    let x_speed: f64 = rng.gen_range(3., 5.);
+//    let y_speed: f64 = rng.gen_range(-2., -3.);
     // Create a new game and run it.
     let mut app = App {
         gl: GlGraphics::new(opengl),
@@ -231,6 +262,16 @@ fn main() {
                 speed: 3.0
             }
         },
+        ball: Ball {
+            sprite: Sprite {
+                position: Position { 
+                    x: 200.0, 
+                    y: 200.0
+                },
+                velocity: [2.0, 1.0],
+                speed: 3.0
+            }
+        }
     };
 
     let mut events = Events::new(EventSettings::new());

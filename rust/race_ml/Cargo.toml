@@ -7,6 +7,7 @@ authors = ["wrazik <wojciech.razik@gmail.com>"]
 name = "spinning-square"
 
 [dependencies]
+rand = "0.5.5"
 piston = "0.37.0"
 pistoncore-glutin_window = "0.47.0"
 piston2d-opengl_graphics = "0.53.0"
