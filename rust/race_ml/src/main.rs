@@ -9,21 +9,28 @@ use piston::event_loop::*;
 use piston::input::*;
 use glutin_window::GlutinWindow as Window;
 use opengl_graphics::{ GlGraphics, OpenGL };
-use rand::prelude::*;
- 
 
-pub struct Position {
+use rand::prelude::*;
+
+ 
+const WHITE: [f32; 4] = [0.3, 0.3, 1.0, 1.0];
+const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
+const WIDTH: f64 = 640.;
+const HEIGHT: f64 = 480.;
+
+pub struct center {
     x: f64,
     y: f64
 }
 
 pub struct Sprite {
-    position: Position,
+    center: center,
     velocity: [f64; 2],
     speed: f64
 }
 
 impl Sprite {
+
     fn up(&mut self) {
         self.velocity = [0., -self.speed]
     }
@@ -35,49 +42,51 @@ impl Sprite {
     }
 
     fn update(&mut self) {
-        self.position.x += self.velocity[0];
+        self.center.x += self.velocity[0];
 
-        if (self.position.x < 0.) {
-            self.position.x = 0.
+        if self.center.x < 0. {
+            self.center.x = 0.
         }
-        else if (self.position.x > 800.) {
-            self.position.x = 800.;
+        else if self.center.x > WIDTH {
+            self.center.x = WIDTH;
         }
-        self.position.y += self.velocity[1];
-        if (self.position.y < 0.) {
-            self.position.y = 0.
+
+        self.center.y += self.velocity[1];
+        if self.center.y < 0. {
+            self.center.y = 0.
         }
-        else if (self.position.y >  600.) {
-            self.position.y = 600.;
+
+        else if self.center.y > HEIGHT {
+            self.center.y = HEIGHT;
         }
     }
 }
 
 pub struct Pad {
-    sprite: Sprite
+    sprite: Sprite,
+    height: f64,
+    width: f64
 }
 
 pub struct Ball {
-    sprite: Sprite
+    sprite: Sprite,
+    radius: f64,
 }
 
-
 impl Ball {
-    const WHITE: [f32; 4] = [0.6, 0.0, 0.6, 1.0];
 
     fn draw(&mut self, gl: &mut GlGraphics, args: &RenderArgs) {
         use graphics::*;
-        let RADIUS = 10.0;
 
-        let (x, y) = (self.sprite.position.x,
-                      self.sprite.position.y);
+        let (x, y) = (self.sprite.center.x,
+                      self.sprite.center.y);
 
         gl.draw(args.viewport(), |c, gl| {
             let transform = c.transform.trans(x, y);
 
             ellipse(
-                Ball::WHITE,
-                graphics::ellipse::circle(0.,0., 20.0), 
+                WHITE,
+                graphics::ellipse::circle(0.,0., self.radius), 
                 transform, 
                 gl
             );
@@ -85,7 +94,8 @@ impl Ball {
     }
     
     fn bounce_x(&mut self) {
-       self.sprite.velocity[0] = -self.sprite.velocity[0];
+       self.sprite.velocity[0] = -self.sprite.velocity[0]*1.1;
+
     }
 
     fn bounce_y(&mut self) {
@@ -95,23 +105,37 @@ impl Ball {
     fn update(&mut self) {
         self.sprite.update();
     }
+    
+    fn reset(&mut self) {
+        self.sprite.center.x = 400.;
+        self.sprite.center.y = 300.;
+        let mut rng = thread_rng();
+        let mut x_speed: f64 = rng.gen_range(0.5, 1.5);
+        if rng.gen_range(0, 10) > 5 {
+            x_speed = -x_speed;
+        } 
+        self.sprite.velocity[0] = x_speed;
+        let mut y_speed: f64 = rng.gen_range(0.8, 1.3);
+        if rng.gen_range(0, 10) > 5 {
+            y_speed = -y_speed;
+        } 
+        self.sprite.velocity[1] = y_speed;
+    }
 }
 
 impl Pad {
-    const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
-    const WHITE: [f32; 4] = [0.0, 0.0, 1.0, 1.0];
-    const PAD: [f64; 4] = [0.0, 0.0, 10.0, 50.0];
 
     fn draw(&mut self, gl: &mut GlGraphics, args: &RenderArgs) {
         use graphics::*;
 
-        let (x, y) = (self.sprite.position.x,
-                      self.sprite.position.y);
+        let (x, y) = (0., 0.);
+
+        let pad: [f64; 4] = [self.sprite.center.x, self.sprite.center.y, self.width, self.height];
 
         gl.draw(args.viewport(), |c, gl| {
             let transform = c.transform.trans(x, y);
 
-            rectangle(Pad::WHITE, Pad::PAD, transform, gl);
+            rectangle(WHITE, pad, transform, gl);
         });
     }
 
@@ -137,13 +161,13 @@ pub struct App {
     left_pad: Pad,  
     right_pad: Pad,  
     ball: Ball,  
+    width: f64,
+    height: f64
 }
 
 impl App {
     fn render(&mut self, args: &RenderArgs) {
         use graphics::*;
-
-        const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
 
         self.gl.draw(args.viewport(), |c, gl| {
             // Clear the screen.
@@ -155,23 +179,59 @@ impl App {
         self.ball.draw(&mut self.gl, args);
     }
 
+    fn score(&mut self) {
+        self.ball.reset();
+    }
+
     fn update(&mut self, args: &UpdateArgs) {
         self.left_pad.update();
         self.right_pad.update();
         self.ball.update();
-        if (self.ball.sprite.position.x > 780.) {
-            self.ball.bounce_x();
+
+        let x = self.ball.sprite.center.x;
+        let y = self.ball.sprite.center.y;
+        let radius = self.ball.radius;
+
+        let lx = self.left_pad.sprite.center.x;
+        let ly = self.left_pad.sprite.center.y;
+        let lh = self.left_pad.height;
+        let lw = self.left_pad.width;
+
+        let rx = self.right_pad.sprite.center.x;
+        let ry = self.right_pad.sprite.center.y;
+        let rh = self.right_pad.height;
+        let rw = self.right_pad.width;
+        
+        if ((x - radius) < (lw + lx)) {
+            if ((y > ly) && (y < (ly + lh))) {
+                self.ball.bounce_x(); 
+            }
+            else {
+                self.score();
+            }
         }
-        if (self.ball.sprite.position.x < 10.) {
-            self.ball.bounce_x();
+        else if ((x + radius) > rx) {
+            if ((y > ry) && (y < (ry + rh))) {
+                self.ball.bounce_x(); 
+            }
+            else {
+                self.score();
+            }
         }
-        if (self.ball.sprite.position.y < 10.) {
+
+
+        if (self.ball.sprite.center.y < self.ball.radius ) {
             self.ball.bounce_y();
         }
 
-        if (self.ball.sprite.position.y > 580.) {
+        else if (self.ball.sprite.center.y + self.ball.radius > self.height) {
             self.ball.bounce_y();
         }
+
+    }
+
+    fn reset(&mut self) {
+        self.ball.reset();
     }
 
     fn release(&mut self, key: &Button) {
@@ -225,53 +285,65 @@ impl App {
 fn main() {
     let opengl = OpenGL::V3_2;
 
-
     // Create an Glutin window.
     let mut window: Window = WindowSettings::new(
-            "spinning-square",
-            [800, 600]
+            "rota-pong",
+            [WIDTH as u32, HEIGHT as u32]
         )
         .opengl(opengl)
         .exit_on_esc(true)
         .build()
         .unwrap();
 
-//    let mut rng = thread_rng();
-//    let x_speed: f64 = rng.gen_range(3., 5.);
-//    let y_speed: f64 = rng.gen_range(-2., -3.);
-    // Create a new game and run it.
+    let mut rng = thread_rng();
+    let mut x_speed: f64 = rng.gen_range(0.5, 1.5);
+    if (rng.gen_range(0, 10) > 5) {
+        x_speed = -x_speed;
+    } 
+    let mut y_speed: f64 = rng.gen_range(0.5, 1.);
+    if (rng.gen_range(0, 10) > 5) {
+        y_speed = -y_speed;
+    } 
+
     let mut app = App {
         gl: GlGraphics::new(opengl),
+        width: WIDTH, 
+        height: HEIGHT,
         left_pad: Pad {
             sprite: Sprite {
-                position: Position { 
-                    x: 10.0, 
-                    y: 280.0
+                center: center { 
+                    x: 20./2., 
+                    y: HEIGHT/2. - 30.,
                 },
                 velocity: [0., 0.],
                 speed: 3.0
-            }
+            },
+            height: 60.,
+            width: 20.
         },
         right_pad: Pad {
             sprite: Sprite {
-                position: Position { 
-                    x: 775.0, 
-                    y: 280.0
+                center: center { 
+                    x: WIDTH-20./2., 
+                    y: HEIGHT/2. - 30.,
                 },
                 velocity: [0., 0.],
                 speed: 3.0
-            }
+            },
+            height: 60.,
+            width: 20.
         },
         ball: Ball {
             sprite: Sprite {
-                position: Position { 
-                    x: 200.0, 
-                    y: 200.0
+                center: center { 
+                    x: WIDTH/2.,
+                    y: HEIGHT/2.,
                 },
-                velocity: [2.0, 1.0],
+                velocity: [x_speed, y_speed],
                 speed: 3.0
-            }
-        }
+            },
+            radius: 10.0
+        },
     };
 
     let mut events = Events::new(EventSettings::new());
