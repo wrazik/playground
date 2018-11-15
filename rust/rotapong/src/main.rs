@@ -352,7 +352,7 @@ fn main() {
             app.key_pressed(&k);
         }
         if let Some(rel_args) = e.release_args() {
-            app.release(&rel_args)
+            app.release(&rel_args);
         }
         if let Some(r) = e.render_args() {
             app.render(&r);
